@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+config.local.json
+.venv/
+venv/
+# state.json IS tracked — GitHub Actions commits it to remember sent posts
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

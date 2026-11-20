@@ -1,0 +1,119 @@
+from __future__ import annotations
+
+import re
+import xml.etree.ElementTree as ET
+from typing import Any
+from urllib.parse import quote
+
+from .http_util import fetch, fetch_json
+
+
+STATUS_ID_RE = re.compile(r"/status/(\d+)")
+
+
+def fetch_posts(
+    handle: str,
+    *,
+    api_hosts: list[str],
+    rss_hosts: list[str],
+    count: int = 20,
+) -> list[dict[str, Any]]:
+    errors: list[str] = []
+
+    for host in api_hosts:
+        url = f"{host.rstrip('/')}/2/profile/{quote(handle)}/statuses?count={count}"
+        try:
+            status, data, _ = fetch_json(url, timeout=30.0)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"api {host}: {exc}")
+            continue
+        if status == 200 and isinstance(data, dict) and data.get("results"):
+            return [p for p in data["results"] if isinstance(p, dict) and p.get("type") == "status"]
+        errors.append(f"api {host}: HTTP {status}")
+
+    for host in rss_hosts:
+        url = f"{host.rstrip('/')}/{quote(handle)}/feed.xml?count={count}"
+        try:
+            status, body, _ = fetch(url, timeout=30.0)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"rss {host}: {exc}")
+            continue
+        if status == 200 and body:
+            posts = _parse_rss(body, fallback_handle=handle)
+            if posts:
+                return posts
+        errors.append(f"rss {host}: HTTP {status}")
+
+    raise RuntimeError(
+        f"Failed to fetch @{handle}. Tried API+RSS. Details: " + "; ".join(errors[-6:])
+    )
+
+
+def filter_posts(
+    posts: list[dict[str, Any]],
+    *,
+    handle: str,
+    exclude_replies: bool,
+    exclude_reposts: bool,
+) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for post in posts:
+        if exclude_reposts and post.get("reposted_by"):
+            continue
+        if exclude_replies and post.get("replying_to"):
+            continue
+        # Keep original posts + (optional) reposts; ignore noise without id.
+        if not post.get("id"):
+            continue
+        out.append(post)
+    return out
+
+
+def _parse_rss(body: bytes, *, fallback_handle: str) -> list[dict[str, Any]]:
+    root = ET.fromstring(body)
+    channel = root.find("channel")
+    if channel is None:
+        return []
+
+    posts: list[dict[str, Any]] = []
+    for item in channel.findall("item"):
+        link = (item.findtext("link") or "").strip()
+        guid = (item.findtext("guid") or "").strip()
+        title = (item.findtext("title") or "").strip()
+        description = (item.findtext("description") or "").strip()
+        pub = (item.findtext("pubDate") or "").strip()
+
+        match = STATUS_ID_RE.search(link) or STATUS_ID_RE.search(guid)
+        if not match:
+            continue
+        post_id = match.group(1)
+
+        # Rough HTML strip for description.
+        text = re.sub(r"<[^>]+>", "", description).strip() or title
+        image_url = None
+        enclosure = item.find("enclosure")
+        if enclosure is not None and (enclosure.get("type") or "").startswith("image"):
+            image_url = enclosure.get("url")
+
+        media: dict[str, Any] = {}
+        if image_url:
+            media = {"photos": [{"type": "photo", "url": image_url}], "all": [{"type": "photo", "url": image_url}]}
+
+        posts.append(
+            {
+                "type": "status",
+                "id": post_id,
+                "url": link or f"https://x.com/{fallback_handle}/status/{post_id}",
+                "text": text,
+                "created_at": pub,
+                "author": {
+                    "screen_name": fallback_handle,
+                    "name": fallback_handle,
+                    "url": f"https://x.com/{fallback_handle}",
+                },
+                "media": media,
+                "reposted_by": None,
+                "replying_to": None,
+            }
+        )
+    return posts

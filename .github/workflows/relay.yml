@@ -1,0 +1,52 @@
+name: Project Moon Discord Relay
+
+on:
+  # GitHub cron is best-effort and often delayed; keep as backup.
+  schedule:
+    - cron: "* * * * *"
+  # Primary trigger: cron-job.org → workflow_dispatch every minute.
+  workflow_dispatch:
+  repository_dispatch:
+    types: [relay]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: relay-singleton
+  cancel-in-progress: false
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run relay
+        env:
+          DISCORD_WEBHOOK_PROJMOON: ${{ secrets.DISCORD_WEBHOOK_PROJMOON }}
+          DISCORD_WEBHOOK_HAM: ${{ secrets.DISCORD_WEBHOOK_HAM }}
+          DISCORD_WEBHOOK_LIMBUS: ${{ secrets.DISCORD_WEBHOOK_LIMBUS }}
+          DISCORD_WEBHOOK_YOUTUBE: ${{ secrets.DISCORD_WEBHOOK_YOUTUBE }}
+        run: python run.py
+
+      - name: Persist state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p data
+          git add data/state.json || true
+          if git diff --cached --quiet; then
+            echo "No state changes"
+          else
+            git commit -m "chore: update relay state [skip ci]"
+            git push
+          fi

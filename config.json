@@ -1,0 +1,50 @@
+{
+  "sources": [
+    {
+      "id": "projmoon",
+      "type": "x",
+      "handle": "ProjMoonStudio",
+      "webhook_env": "DISCORD_WEBHOOK_PROJMOON",
+      "exclude_replies": true,
+      "exclude_reposts": false,
+      "color": 3447003
+    },
+    {
+      "id": "ham",
+      "type": "x",
+      "handle": "Ham_PangPang",
+      "webhook_env": "DISCORD_WEBHOOK_HAM",
+      "exclude_replies": true,
+      "exclude_reposts": false,
+      "color": 15105570
+    },
+    {
+      "id": "limbus",
+      "type": "x",
+      "handle": "LimbusCompany_B",
+      "webhook_env": "DISCORD_WEBHOOK_LIMBUS",
+      "exclude_replies": true,
+      "exclude_reposts": false,
+      "color": 10038562
+    },
+    {
+      "id": "youtube_pm",
+      "type": "youtube_live",
+      "handle": "projectmoonofficial",
+      "channel_id": "UCpqyr6h4RCXCEswHlkSjykA",
+      "webhook_env": "DISCORD_WEBHOOK_YOUTUBE",
+      "color": 16711680
+    }
+  ],
+  "fxtwitter_hosts": [
+    "https://api.fxtwitter.com",
+    "https://api.fixupx.com"
+  ],
+  "rss_hosts": [
+    "https://fxtwitter.com",
+    "https://fixupx.com"
+  ],
+  "state_path": "data/state.json",
+  "fetch_count": 20,
+  "max_seen_ids": 200
+}
