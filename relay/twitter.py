@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 import xml.etree.ElementTree as ET
 from typing import Any
 from urllib.parse import quote
@@ -17,6 +18,32 @@ def fetch_posts(
     api_hosts: list[str],
     rss_hosts: list[str],
     count: int = 20,
+    attempts: int = 3,
+) -> list[dict[str, Any]]:
+    """Fetch recent posts. Retries on transient FxTwitter/RSS failures."""
+    last_error = "unknown"
+    for attempt in range(1, max(attempts, 1) + 1):
+        try:
+            return _fetch_posts_once(
+                handle,
+                api_hosts=api_hosts,
+                rss_hosts=rss_hosts,
+                count=count,
+            )
+        except RuntimeError as exc:
+            last_error = str(exc)
+            if attempt >= attempts:
+                break
+            time.sleep(1.5 * attempt)
+    raise RuntimeError(last_error)
+
+
+def _fetch_posts_once(
+    handle: str,
+    *,
+    api_hosts: list[str],
+    rss_hosts: list[str],
+    count: int,
 ) -> list[dict[str, Any]]:
     errors: list[str] = []
 
@@ -27,8 +54,12 @@ def fetch_posts(
         except Exception as exc:  # noqa: BLE001
             errors.append(f"api {host}: {exc}")
             continue
-        if status == 200 and isinstance(data, dict) and data.get("results"):
-            return [p for p in data["results"] if isinstance(p, dict) and p.get("type") == "status"]
+        if status == 200 and isinstance(data, dict) and isinstance(data.get("results"), list):
+            return [
+                p
+                for p in data["results"]
+                if isinstance(p, dict) and p.get("type") == "status"
+            ]
         errors.append(f"api {host}: HTTP {status}")
 
     for host in rss_hosts:

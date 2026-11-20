@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,7 @@ def process_x(source: dict[str, Any], cfg: dict[str, Any], state: StateStore, dr
         api_hosts=cfg.get("fxtwitter_hosts") or ["https://api.fxtwitter.com"],
         rss_hosts=cfg.get("rss_hosts") or ["https://fxtwitter.com"],
         count=int(cfg.get("fetch_count") or 20),
+        attempts=int(cfg.get("fetch_attempts") or 3),
     )
     posts = filter_posts(
         posts,
@@ -151,9 +153,16 @@ def run(config_path: Path, dry_run: bool = False, only: str | None = None) -> in
 
     failures = 0
     sent_total = 0
-    for source in cfg.get("sources") or []:
+    sources = list(cfg.get("sources") or [])
+    # Limbus first: highest priority for near-real-time.
+    sources.sort(key=lambda s: 0 if s.get("id") == "limbus" else 1)
+
+    for index, source in enumerate(sources):
         if only and source.get("id") != only and source.get("handle") != only:
             continue
+        if index and source.get("type") == "x":
+            # Small gap so FxTwitter is less likely to 404 a burst of accounts.
+            time.sleep(float(cfg.get("source_delay_seconds") or 1.5))
         try:
             if source.get("type") == "x":
                 sent_total += process_x(source, cfg, state, dry_run)
@@ -168,7 +177,11 @@ def run(config_path: Path, dry_run: bool = False, only: str | None = None) -> in
 
     state.save()
     print(f"done: sent={sent_total} failures={failures}")
-    return 1 if failures else 0
+    # Soft-fail: next cron minute will retry. Don't red-fail the whole Action
+    # for transient FxTwitter blips.
+    if failures:
+        print("soft-fail: transient source errors ignored for exit code")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:

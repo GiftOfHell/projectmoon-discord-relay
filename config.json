@@ -46,5 +46,6 @@
   ],
   "state_path": "data/state.json",
   "fetch_count": 20,
-  "max_seen_ids": 200
+  "max_seen_ids": 200,
+  "source_delay_seconds": 1.5
 }
