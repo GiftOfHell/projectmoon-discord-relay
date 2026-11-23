@@ -14,8 +14,10 @@
       "type": "x",
       "handle": "Ham_PangPang",
       "webhook_env": "DISCORD_WEBHOOK_HAM",
-      "exclude_replies": true,
+      "exclude_replies": false,
+      "only_self_replies": true,
       "exclude_reposts": false,
+      "state_epoch": 3,
       "color": 15105570
     },
     {

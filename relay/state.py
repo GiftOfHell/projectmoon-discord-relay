@@ -35,14 +35,18 @@ class StateStore:
                 "initialized": False,
                 "seen_ids": [],
                 "active_live_id": None,
+                "epoch": 1,
             }
         return sources[source_id]
 
-    def is_initialized(self, source_id: str) -> bool:
-        return bool(self.source(source_id).get("initialized"))
+    def is_initialized(self, source_id: str, epoch: int = 1) -> bool:
+        bucket = self.source(source_id)
+        return bool(bucket.get("initialized")) and int(bucket.get("epoch") or 1) == int(epoch)
 
-    def mark_initialized(self, source_id: str) -> None:
-        self.source(source_id)["initialized"] = True
+    def mark_initialized(self, source_id: str, epoch: int = 1) -> None:
+        bucket = self.source(source_id)
+        bucket["initialized"] = True
+        bucket["epoch"] = int(epoch)
 
     def seen_ids(self, source_id: str) -> set[str]:
         return set(self.source(source_id).get("seen_ids") or [])

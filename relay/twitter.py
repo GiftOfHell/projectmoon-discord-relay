@@ -19,6 +19,7 @@ def fetch_posts(
     rss_hosts: list[str],
     count: int = 20,
     attempts: int = 3,
+    include_replies: bool = False,
 ) -> list[dict[str, Any]]:
     """Fetch recent posts. Retries on transient FxTwitter/RSS failures."""
     last_error = "unknown"
@@ -29,6 +30,7 @@ def fetch_posts(
                 api_hosts=api_hosts,
                 rss_hosts=rss_hosts,
                 count=count,
+                include_replies=include_replies,
             )
         except RuntimeError as exc:
             last_error = str(exc)
@@ -44,11 +46,16 @@ def _fetch_posts_once(
     api_hosts: list[str],
     rss_hosts: list[str],
     count: int,
+    include_replies: bool,
 ) -> list[dict[str, Any]]:
     errors: list[str] = []
+    reply_q = "&with_replies=1" if include_replies else ""
 
     for host in api_hosts:
-        url = f"{host.rstrip('/')}/2/profile/{quote(handle)}/statuses?count={count}"
+        url = (
+            f"{host.rstrip('/')}/2/profile/{quote(handle)}/statuses"
+            f"?count={count}{reply_q}"
+        )
         try:
             status, data, _ = fetch_json(url, timeout=30.0)
         except Exception as exc:  # noqa: BLE001
@@ -86,13 +93,32 @@ def filter_posts(
     handle: str,
     exclude_replies: bool,
     exclude_reposts: bool,
+    only_self_replies: bool = False,
 ) -> list[dict[str, Any]]:
+    handle_l = handle.lstrip("@").lower()
     out: list[dict[str, Any]] = []
     for post in posts:
         if exclude_reposts and post.get("reposted_by"):
             continue
-        if exclude_replies and post.get("replying_to"):
-            continue
+
+        replying_to = post.get("replying_to")
+        if replying_to:
+            if exclude_replies:
+                continue
+            if only_self_replies:
+                # Accept only replies in his own thread (translation follow-ups).
+                target = ""
+                if isinstance(replying_to, dict):
+                    target = (
+                        replying_to.get("screen_name")
+                        or (replying_to.get("author") or {}).get("screen_name")
+                        or ""
+                    )
+                elif isinstance(replying_to, str):
+                    target = replying_to
+                if target.lstrip("@").lower() != handle_l:
+                    continue
+
         # Keep original posts + (optional) reposts; ignore noise without id.
         if not post.get("id"):
             continue

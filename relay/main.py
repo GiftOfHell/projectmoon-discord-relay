@@ -46,18 +46,25 @@ def webhook_for(source: dict[str, Any]) -> str:
 def process_x(source: dict[str, Any], cfg: dict[str, Any], state: StateStore, dry_run: bool) -> int:
     handle = source["handle"]
     source_id = source["id"]
+    epoch = int(source.get("state_epoch") or 1)
+    exclude_replies = bool(source.get("exclude_replies", True))
+    only_self_replies = bool(source.get("only_self_replies", False))
+    # Need with_replies=1 when we keep any replies (all or self-only).
+    include_replies = (not exclude_replies) or only_self_replies
     posts = fetch_posts(
         handle,
         api_hosts=cfg.get("fxtwitter_hosts") or ["https://api.fxtwitter.com"],
         rss_hosts=cfg.get("rss_hosts") or ["https://fxtwitter.com"],
         count=int(cfg.get("fetch_count") or 20),
         attempts=int(cfg.get("fetch_attempts") or 3),
+        include_replies=include_replies,
     )
     posts = filter_posts(
         posts,
         handle=handle,
-        exclude_replies=bool(source.get("exclude_replies", True)),
+        exclude_replies=exclude_replies and not only_self_replies,
         exclude_reposts=bool(source.get("exclude_reposts", False)),
+        only_self_replies=only_self_replies,
     )
 
     # Newest first from API; process oldest→newest for Discord order.
@@ -65,16 +72,21 @@ def process_x(source: dict[str, Any], cfg: dict[str, Any], state: StateStore, dr
     known = state.seen_ids(source_id)
     new_posts = [p for p in posts if p["id"] not in known]
 
-    if not state.is_initialized(source_id):
-        # First run: remember current timeline, do not spam history.
+    if not state.is_initialized(source_id, epoch=epoch):
+        # First run / config epoch bump: remember current timeline, do not spam.
         state.remember_ids(source_id, [p["id"] for p in posts])
-        state.mark_initialized(source_id)
-        print(f"[{source_id}] initialized with {len(posts)} posts (no send)")
+        state.mark_initialized(source_id, epoch=epoch)
+        state.save()
+        print(f"[{source_id}] initialized epoch={epoch} with {len(posts)} posts (no send)")
         return 0
 
     if not new_posts:
         print(f"[{source_id}] no new posts")
         return 0
+
+    # Claim IDs before Discord send so overlapping runners don't double-post.
+    state.remember_ids(source_id, [p["id"] for p in new_posts])
+    state.save()
 
     webhook = webhook_for(source)
     sent = 0
@@ -83,17 +95,19 @@ def process_x(source: dict[str, Any], cfg: dict[str, Any], state: StateStore, dr
         print(f"[{source_id}] new post {post['id']}: {(post.get('text') or '')[:80]!r}")
         if dry_run:
             continue
-        send_webhook(
-            webhook,
-            embeds=[embed],
-            username=f"{(post.get('author') or {}).get('name') or handle}",
-            avatar_url=(post.get("author") or {}).get("avatar_url"),
-        )
-        sent += 1
-        state.remember_ids(source_id, [post["id"]])
+        try:
+            send_webhook(
+                webhook,
+                embeds=[embed],
+                username=f"{(post.get('author') or {}).get('name') or handle}",
+                avatar_url=(post.get("author") or {}).get("avatar_url"),
+            )
+            sent += 1
+        except Exception:
+            # Keep ID claimed to avoid duplicates; log and continue.
+            print(f"[{source_id}] send failed for {post['id']}", file=sys.stderr)
+            traceback.print_exc()
 
-    if dry_run:
-        state.remember_ids(source_id, [p["id"] for p in new_posts])
     print(f"[{source_id}] sent {sent}/{len(new_posts)}")
     return sent
 
