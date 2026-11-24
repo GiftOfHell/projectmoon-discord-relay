@@ -95,6 +95,16 @@
       ],
       "active_live_id": null,
       "epoch": 3
+    },
+    "static_panda_tl": {
+      "initialized": true,
+      "seen_ids": [
+        "2121887321129943477",
+        "2122637774021152898",
+        "2125092176757666235"
+      ],
+      "active_live_id": null,
+      "epoch": 1
     }
   }
 }
