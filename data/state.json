@@ -2,8 +2,10 @@
   "sources": {
     "youtube_pm": {
       "initialized": true,
-      "seen_ids": [],
-      "active_live_id": null
+      "seen_ids": [
+        "U-Z7UexqEJ4"
+      ],
+      "active_live_id": "U-Z7UexqEJ4"
     },
     "limbus": {
       "initialized": true,
