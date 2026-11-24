@@ -36,6 +36,17 @@
       "channel_id": "UCpqyr6h4RCXCEswHlkSjykA",
       "webhook_env": "DISCORD_WEBHOOK_YOUTUBE",
       "color": 16711680
+    },
+    {
+      "id": "static_panda_tl",
+      "type": "x",
+      "handle": "Static_Panda",
+      "webhook_env": "DISCORD_WEBHOOK_YOUTUBE",
+      "exclude_replies": true,
+      "exclude_reposts": true,
+      "require_text_contains": ["docs.google.com"],
+      "state_epoch": 1,
+      "color": 5763719
     }
   ],
   "fxtwitter_hosts": [

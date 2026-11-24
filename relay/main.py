@@ -65,6 +65,7 @@ def process_x(source: dict[str, Any], cfg: dict[str, Any], state: StateStore, dr
         exclude_replies=exclude_replies and not only_self_replies,
         exclude_reposts=bool(source.get("exclude_reposts", False)),
         only_self_replies=only_self_replies,
+        require_text_contains=list(source.get("require_text_contains") or []),
     )
 
     # Newest first from API; process oldest→newest for Discord order.

@@ -94,8 +94,10 @@ def filter_posts(
     exclude_replies: bool,
     exclude_reposts: bool,
     only_self_replies: bool = False,
+    require_text_contains: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     handle_l = handle.lstrip("@").lower()
+    needles = [n.lower() for n in (require_text_contains or []) if n]
     out: list[dict[str, Any]] = []
     for post in posts:
         if exclude_reposts and post.get("reposted_by"):
@@ -122,8 +124,38 @@ def filter_posts(
         # Keep original posts + (optional) reposts; ignore noise without id.
         if not post.get("id"):
             continue
+
+        if needles:
+            blob = _post_search_blob(post)
+            if not any(n in blob for n in needles):
+                continue
+
         out.append(post)
     return out
+
+
+def _post_search_blob(post: dict[str, Any]) -> str:
+    parts = [
+        str(post.get("text") or ""),
+        str(post.get("url") or ""),
+    ]
+    card = post.get("card") or {}
+    if isinstance(card, dict):
+        parts.extend(
+            [
+                str(card.get("url") or ""),
+                str(card.get("title") or ""),
+                str(card.get("description") or ""),
+            ]
+        )
+    raw = post.get("raw_text") or {}
+    if isinstance(raw, dict):
+        parts.append(str(raw.get("text") or ""))
+        for facet in raw.get("facets") or []:
+            if isinstance(facet, dict):
+                parts.append(str(facet.get("replacement") or ""))
+                parts.append(str(facet.get("original") or ""))
+    return "\n".join(parts).lower()
 
 
 def _parse_rss(body: bytes, *, fallback_handle: str) -> list[dict[str, Any]]:
