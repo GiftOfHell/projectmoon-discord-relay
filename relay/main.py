@@ -35,12 +35,71 @@ def load_config(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def webhook_for(source: dict[str, Any]) -> str:
-    env_name = source["webhook_env"]
-    url = os.environ.get(env_name, "").strip()
-    if not url:
-        raise RuntimeError(f"Missing webhook env var: {env_name}")
-    return url
+def webhooks_for(source: dict[str, Any], *, max_index: int = 9) -> list[tuple[str, str]]:
+    """Collect Discord webhook URLs for a source.
+
+    Base env (e.g. DISCORD_WEBHOOK_PROJMOON) = server 1.
+    Extra servers: DISCORD_WEBHOOK_PROJMOON_2, _3, ... up to max_index.
+    Missing/empty vars are skipped — never raises.
+    """
+    bases: list[str] = []
+    primary = source.get("webhook_env")
+    if primary:
+        bases.append(str(primary))
+    for extra in source.get("webhook_envs") or []:
+        name = str(extra).strip()
+        if name and name not in bases:
+            bases.append(name)
+
+    out: list[tuple[str, str]] = []
+    seen_urls: set[str] = set()
+    for base in bases:
+        names = [base] + [f"{base}_{i}" for i in range(2, max_index + 1)]
+        for name in names:
+            url = os.environ.get(name, "").strip()
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            out.append((name, url))
+    return out
+
+
+def send_to_webhooks(
+    source: dict[str, Any],
+    *,
+    source_id: str,
+    content: str | None = None,
+    embeds: list[dict[str, Any]] | None = None,
+    username: str | None = None,
+    avatar_url: str | None = None,
+    dry_run: bool = False,
+) -> int:
+    """Send one payload to every configured webhook. Returns deliveries count."""
+    hooks = webhooks_for(source)
+    if not hooks:
+        print(f"[{source_id}] no webhooks configured, skip send")
+        return 0
+    if dry_run:
+        names = ", ".join(name for name, _ in hooks)
+        print(f"[{source_id}] dry-run → {names}")
+        return 0
+
+    delivered = 0
+    for name, url in hooks:
+        try:
+            send_webhook(
+                url,
+                content=content,
+                embeds=embeds,
+                username=username,
+                avatar_url=avatar_url,
+            )
+            delivered += 1
+        except Exception:
+            print(f"[{source_id}] send failed via {name}", file=sys.stderr)
+            traceback.print_exc()
+    print(f"[{source_id}] delivered to {delivered}/{len(hooks)} webhooks")
+    return delivered
 
 
 def process_x(source: dict[str, Any], cfg: dict[str, Any], state: StateStore, dry_run: bool) -> int:
@@ -89,25 +148,21 @@ def process_x(source: dict[str, Any], cfg: dict[str, Any], state: StateStore, dr
     state.remember_ids(source_id, [p["id"] for p in new_posts])
     state.save()
 
-    webhook = webhook_for(source)
     sent = 0
     for post in new_posts:
         embed = tweet_embed(post, int(source.get("color") or 3447003))
         print(f"[{source_id}] new post {post['id']}: {(post.get('text') or '')[:80]!r}")
-        if dry_run:
-            continue
-        try:
-            send_webhook(
-                webhook,
-                embeds=[embed],
-                username=f"{(post.get('author') or {}).get('name') or handle}",
-                avatar_url=(post.get("author") or {}).get("avatar_url"),
-            )
+        # IDs already claimed above — missing webhooks / send errors must not unblock spam.
+        delivered = send_to_webhooks(
+            source,
+            source_id=source_id,
+            embeds=[embed],
+            username=f"{(post.get('author') or {}).get('name') or handle}",
+            avatar_url=(post.get("author") or {}).get("avatar_url"),
+            dry_run=dry_run,
+        )
+        if dry_run or delivered:
             sent += 1
-        except Exception:
-            # Keep ID claimed to avoid duplicates; log and continue.
-            print(f"[{source_id}] send failed for {post['id']}", file=sys.stderr)
-            traceback.print_exc()
 
     print(f"[{source_id}] sent {sent}/{len(new_posts)}")
     return sent
@@ -149,16 +204,17 @@ def process_youtube_live(
         return 0
 
     print(f"[{source_id}] LIVE {video_id}: {live.get('title')!r}")
-    if not dry_run:
-        send_webhook(
-            webhook_for(source),
-            content="@everyone" if source.get("mention_everyone") else None,
-            embeds=[youtube_live_embed(live, int(source.get("color") or 16711680))],
-            username="YouTube Live",
-        )
+    delivered = send_to_webhooks(
+        source,
+        source_id=source_id,
+        content="@everyone" if source.get("mention_everyone") else None,
+        embeds=[youtube_live_embed(live, int(source.get("color") or 16711680))],
+        username="YouTube Live",
+        dry_run=dry_run,
+    )
     state.remember_ids(source_id, [video_id])
     state.set_active_live(source_id, video_id)
-    return 0 if dry_run else 1
+    return 0 if dry_run else (1 if delivered else 0)
 
 
 def run(config_path: Path, dry_run: bool = False, only: str | None = None) -> int:

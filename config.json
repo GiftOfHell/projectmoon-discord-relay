@@ -13,7 +13,7 @@
       "id": "ham",
       "type": "x",
       "handle": "Ham_PangPang",
-      "webhook_env": "DISCORD_WEBHOOK_HAM",
+      "webhook_env": "DISCORD_WEBHOOK_HHPP",
       "exclude_replies": false,
       "only_self_replies": true,
       "exclude_reposts": false,

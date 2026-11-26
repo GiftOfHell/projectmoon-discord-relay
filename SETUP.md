@@ -34,12 +34,15 @@ cron-job.org триггерит Action─┘
 3. **Copy Webhook URL**
 4. Сохрани URL куда-нибудь временно (блокнот)
 
-Нужны 4 URL:
+Основной сервер — 4 URL:
 
-- `DISCORD_WEBHOOK_PROJMOON` ← канал для ProjMoonStudio  
-- `DISCORD_WEBHOOK_HAM` ← канал для Ham_PangPang  
-- `DISCORD_WEBHOOK_LIMBUS` ← канал для LimbusCompany_B  
-- `DISCORD_WEBHOOK_YOUTUBE` ← канал для YouTube live  
+- `DISCORD_WEBHOOK_PROJMOON` ← ProjMoonStudio  
+- `DISCORD_WEBHOOK_HHPP` ← Ham_PangPang  
+- `DISCORD_WEBHOOK_LIMBUS` ← LimbusCompany_B  
+- `DISCORD_WEBHOOK_YOUTUBE` ← YouTube live + Static_Panda docs  
+
+Доп. серверы (опционально): те же имена с суффиксом `_2`, `_3`
+(например `DISCORD_WEBHOOK_LIMBUS_2`). Не задан — просто не шлём туда, без ошибки.
 
 > Webhook URL — секрет. Не публикуй его в Issues / чатах.
 
@@ -111,16 +114,21 @@ git push -u origin main
 ## Шаг 4. Secrets в GitHub
 
 1. Репозиторий → **Settings** → **Secrets and variables** → **Actions**  
-2. **New repository secret** — создай ровно эти 4 имени:
+2. **New repository secret** — минимум эти 4 (основной сервер):
 
 | Name | Value |
 |------|-------|
-| `DISCORD_WEBHOOK_PROJMOON` | URL webhook #1 |
-| `DISCORD_WEBHOOK_HAM` | URL webhook #2 |
-| `DISCORD_WEBHOOK_LIMBUS` | URL webhook #3 |
-| `DISCORD_WEBHOOK_YOUTUBE` | URL webhook #4 |
+| `DISCORD_WEBHOOK_PROJMOON` | URL webhook ProjMoon |
+| `DISCORD_WEBHOOK_HHPP` | URL webhook HHPP / Ham |
+| `DISCORD_WEBHOOK_LIMBUS` | URL webhook Limbus |
+| `DISCORD_WEBHOOK_YOUTUBE` | URL webhook YouTube / TL |
 
-Имена должны совпадать **буква в букву** с `config.json` / workflow.
+Для доп. серверов добавь те же имена с `_2` … `_9`
+(например `DISCORD_WEBHOOK_YOUTUBE_2`). Не все 4 обязательны на каждом сервере —
+пустой/отсутствующий секрет просто пропускается.
+
+Старый секрет `DISCORD_WEBHOOK_HAM` больше не читается — переименуй в `DISCORD_WEBHOOK_HHPP`
+(или создай новый и удали старый).
 
 ---
 
