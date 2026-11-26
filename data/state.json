@@ -3,9 +3,10 @@
     "youtube_pm": {
       "initialized": true,
       "seen_ids": [
+        "L4UMpV5eVfQ",
         "U-Z7UexqEJ4"
       ],
-      "active_live_id": null
+      "active_live_id": "L4UMpV5eVfQ"
     },
     "limbus": {
       "initialized": true,
