@@ -18,6 +18,17 @@ class StateStore:
             self._data.setdefault("sources", {})
         else:
             self._data = {"sources": {}}
+        self._migrate_source_ids()
+
+    def _migrate_source_ids(self) -> None:
+        """One-shot renames so logs/config stay aligned without re-init spam."""
+        sources = self._data["sources"]
+        # ham → hhpp (Discord webhook / source id rename)
+        if "ham" in sources and "hhpp" not in sources:
+            sources["hhpp"] = sources.pop("ham")
+        elif "ham" in sources and "hhpp" in sources:
+            # Prefer the richer bucket, drop the legacy key.
+            sources.pop("ham", None)
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)

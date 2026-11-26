@@ -1,14 +1,13 @@
 # План запуска: X + YouTube Live → Discord (бесплатно)
 
-Локальный проект: `C:\Users\burachonak\projectmoon-discord-relay`  
-На GitHub **ещё ничего не залито** — это сделаешь ты по шагам ниже.
+Репозиторий: `https://github.com/GiftOfHell/projectmoon-discord-relay`
 
 ## Что получится
 
 | Источник | Куда | Как часто |
 |----------|------|-----------|
 | `ProjMoonStudio` (X) | webhook #1 | ~каждую минуту |
-| `Ham_PangPang` (X) | webhook #2 | ~каждую минуту |
+| `Ham_PangPang` / HHPP (X) | webhook HHPP | ~каждую минуту |
 | `LimbusCompany_B` (X) | webhook #3 | ~каждую минуту (важно) |
 | `@projectmoonofficial` **только LIVE** | webhook #4 | ~каждую минуту |
 
@@ -37,7 +36,7 @@ cron-job.org триггерит Action─┘
 Основной сервер — 4 URL:
 
 - `DISCORD_WEBHOOK_PROJMOON` ← ProjMoonStudio  
-- `DISCORD_WEBHOOK_HHPP` ← Ham_PangPang  
+- `DISCORD_WEBHOOK_HHPP` ← HHPP (`Ham_PangPang`)  
 - `DISCORD_WEBHOOK_LIMBUS` ← LimbusCompany_B  
 - `DISCORD_WEBHOOK_YOUTUBE` ← YouTube live + Static_Panda docs  
 
@@ -73,6 +72,7 @@ python run.py
 
 ```powershell
 python run.py --only limbus
+python run.py --only hhpp
 python run.py --only youtube_pm
 ```
 
@@ -119,16 +119,13 @@ git push -u origin main
 | Name | Value |
 |------|-------|
 | `DISCORD_WEBHOOK_PROJMOON` | URL webhook ProjMoon |
-| `DISCORD_WEBHOOK_HHPP` | URL webhook HHPP / Ham |
+| `DISCORD_WEBHOOK_HHPP` | URL webhook HHPP |
 | `DISCORD_WEBHOOK_LIMBUS` | URL webhook Limbus |
 | `DISCORD_WEBHOOK_YOUTUBE` | URL webhook YouTube / TL |
 
 Для доп. серверов добавь те же имена с `_2` … `_9`
 (например `DISCORD_WEBHOOK_YOUTUBE_2`). Не все 4 обязательны на каждом сервере —
 пустой/отсутствующий секрет просто пропускается.
-
-Старый секрет `DISCORD_WEBHOOK_HAM` больше не читается — переименуй в `DISCORD_WEBHOOK_HHPP`
-(или создай новый и удали старый).
 
 ---
 
@@ -200,7 +197,7 @@ Content-Type: application/json
 
 ## Шаг 7. Проверка «в бою»
 
-1. Дождись нового поста Limbus / ProjMoon / Ham — должен появиться embed в нужном канале.  
+1. Дождись нового поста Limbus / ProjMoon / HHPP — должен появиться embed в нужном канале.  
 2. YouTube: уведомление уйдёт **только когда канал реально в эфире** (`/@projectmoonofficial/live`). Обычные видео и премьеры без live — игнор.  
 3. Один и тот же эфир не дублируется. Новый эфир после окончания предыдущего — снова уведомит.
 

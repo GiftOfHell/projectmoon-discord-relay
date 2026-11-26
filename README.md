@@ -5,7 +5,7 @@
 Источники:
 
 - [ProjMoonStudio](https://x.com/ProjMoonStudio)
-- [Ham_PangPang](https://x.com/Ham_PangPang)
+- [Ham_PangPang](https://x.com/Ham_PangPang) (source id / webhook: `hhpp`)
 - [LimbusCompany_B](https://x.com/LimbusCompany_B) (приоритет ~1 мин)
 - [YouTube @projectmoonofficial](https://youtube.com/@projectmoonofficial) — **только прямые эфиры**
 
